@@ -29,7 +29,7 @@ def compute_convolution(I, T, stride=None):
     # for row in rows:
     #     for col in cols:
             
-    print(heat_rows)
+   # print(heat_rows)
     while (row < (heat_rows-1)):
         col = 0   
         while col < heat_cols-stride:
@@ -42,7 +42,7 @@ def compute_convolution(I, T, stride=None):
                 #print(np.convolve(sub_I.reshape((-1,)),channel_T.reshape((-1,)),'valid'))
                 #sub_heat += np.sum(np.multiply(channel_T,sub_I))/(np.linalg.norm(T)*np.linalg.norm(sub_I))
                 sub_heat += np.convolve(sub_I.reshape((-1,)),channel_T.reshape((-1,)),'valid')
-            sub_heat /= 3
+
             heatmap[int(row/stride),int(col/stride)] = sub_heat
             sub_heat = 0
             col += stride
@@ -195,7 +195,7 @@ preds_path = home+'/data/hw02_preds'
 os.makedirs(preds_path, exist_ok=True) # create directory if needed
 
 # Set this parameter to True when you're done with algorithm development:
-done_tweaking = False
+done_tweaking = True
 
 '''
 Make predictions on the training set.
@@ -211,7 +211,7 @@ for i in range(len(file_names_train)):
     I = np.asarray(I)
 
     preds_train[file_names_train[i]] = detect_red_light_mf(I)
-    break
+    
 
 # save preds (overwrites any previous predictions!)
 with open(os.path.join(preds_path,'preds_train.json'),'w') as f:

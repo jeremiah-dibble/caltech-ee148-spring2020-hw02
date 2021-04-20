@@ -2,7 +2,8 @@ import os
 import json
 import numpy as np
 import matplotlib.pyplot as plt
-
+import matplotlib.image as mpimg
+import  matplotlib.patches as patches
 def compute_iou(box_1, box_2):
     '''
     This function takes a pair of bounding boxes and returns intersection-over-
@@ -65,6 +66,8 @@ def compute_counts(preds, gts, iou_thr=0.5, conf_thr=0.5):
             elif positives > 1:
                 TP += 1
                 FP += positives -1
+                if FP < 10:
+                    show_box(pred, pred[:][:4])
                 
                 
                 
@@ -93,8 +96,23 @@ def compute_counts(preds, gts, iou_thr=0.5, conf_thr=0.5):
 
     return TP, FP, FN
 
+def show_box(key, boxs):
+    #index = file_names_train.index(key)
+    I = Image.open(os.path.join(data_path,key))
+    I = np.asarray(I)
+    img = mpimg.imread(data_path+'/'+key)
+
+    for box in boxs:
+        box_height = box[2] - box[0]
+        box_width = box[3] - box[1]
+        figure, ax = plt.subplots(1)
+        rect = patches.Rectangle((box[0],box[1]),box_width,box_height, edgecolor='r', facecolor="none")
+        ax.imshow(img)
+        ax.add_patch(rect)
+
 # set a path for predictions and annotations:
 HOME = 'C:/Users/Jerem/OneDrive/Documents from one drive/GitHub/caltech-ee148-spring2020-hw02'
+
 preds_path = HOME + '/data/hw02_preds'
 gts_path = HOME + '/data/hw02_annotations'
 
@@ -104,7 +122,7 @@ file_names_train = np.load(os.path.join(split_path,'file_names_train.npy'))
 file_names_test = np.load(os.path.join(split_path,'file_names_test.npy'))
 
 # Set this parameter to True when you're done with algorithm development:
-done_tweaking = False
+done_tweaking = True
 
 '''
 Load training data. 
