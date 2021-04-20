@@ -15,16 +15,53 @@ def compute_convolution(I, T, stride=None):
     '''
     BEGIN YOUR CODE
     '''
-    heatmap = np.random.random((n_rows, n_cols))
+    stride = 1
+    trows, tcols, tchannels = np.shape(T)
+    heat_rows = n_rows - trows
+    heat_cols = n_cols - tcols
+    heatmap = np.zeros((int(heat_rows/stride), int(heat_cols/stride)))
+    sub_heat = 0
+    col  = 0
+    row =  0
+    
+    # rows = np.arange(0,n_rows, stride)
+    # cols = np.arange(0,n_cols, stride)
+    # for row in rows:
+    #     for col in cols:
+            
+    print(heat_rows)
+    while (row < (heat_rows-1)):
+        col = 0   
+        while col < heat_cols-stride:
 
+            for channel in range(n_channels):
+                sub_I = I[row:(row+trows),col:col+tcols, channel]
+                #print(np.shape(sub_I))
+                # print(np.shape(T))
+                channel_T = T[:,:,channel]
+                #print(np.convolve(sub_I.reshape((-1,)),channel_T.reshape((-1,)),'valid'))
+                #sub_heat += np.sum(np.multiply(channel_T,sub_I))/(np.linalg.norm(T)*np.linalg.norm(sub_I))
+                sub_heat += np.convolve(sub_I.reshape((-1,)),channel_T.reshape((-1,)),'valid')
+            sub_heat /= 3
+            heatmap[int(row/stride),int(col/stride)] = sub_heat
+            sub_heat = 0
+            col += stride
+        row += 1
+        
+        
     '''
     END YOUR CODE
-    '''
-
+    ''' 
+    # print('min max is', np.min(heatmap))
+    # print('max', np.max(heatmap))
+    # print(heatmap)
+    #img = Image.fromarray(heatmap)
+        
+    #img.show()
     return heatmap
 
 
-def predict_boxes(heatmap):
+def predict_boxes(heatmap, template_D):
     '''
     This function takes heatmap and returns the bounding boxes and associated
     confidence scores.
@@ -40,23 +77,49 @@ def predict_boxes(heatmap):
     As an example, here's code that generates between 1 and 5 random boxes
     of fixed size and returns the results in the proper format.
     '''
+    stride = 10
+    candidates = []
+    template_height, template_width =template_D
+    n_rows, n_cols = np.shape(heatmap)
+    thirds = np.linspace(0,n_cols, 4)
+    sub_sections  = [heatmap[:,0:int(thirds[1])], heatmap[:,int(thirds[1]):int(thirds[2])],heatmap[:,int(thirds[2]):]]
+    normal_std = np.std(heatmap/np.max(heatmap))
+    #print(np.max(heatmap))
+    for i in range(len(thirds)-1 ):
+        sub_heat = sub_sections[i]
+        #print(np.shape(sub_heat))
+        third_max = 0
+        for row in range(n_rows):
+            row_max = np.max(sub_heat[row])
+            if row_max > third_max:
+                third_max = row_max
+                max_row = row
+        location_row = max_row
+        location_column = thirds[i] + sub_heat[max_row].tolist().index(third_max)
+        candidates.append((location_row,location_column))
+        #print(candidates, np.max(heatmap))
+    #print(np.sum(heatmap > .98))    
+    #print(np.sum(heatmap > 0))
+    #print(np.mean(heatmap))
+    for can in candidates:
+        tl_row, tl_col = can
+        tl_row, tl_col =int(tl_row), int(tl_col)
+        
 
-    box_height = 8
-    box_width = 6
-
-    num_boxes = np.random.randint(1,5)
-
-    for i in range(num_boxes):
-        (n_rows,n_cols,n_channels) = np.shape(I)
-
-        tl_row = np.random.randint(n_rows - box_height)
-        tl_col = np.random.randint(n_cols - box_width)
-        br_row = tl_row + box_height
-        br_col = tl_col + box_width
-
-        score = np.random.random()
-
-        output.append([tl_row,tl_col,br_row,br_col, score])
+        #print('mean',np.mean(heatmap))
+        
+        score = heatmap[tl_row, tl_col] / np.max(heatmap)
+        #print(score)
+        tl_row = tl_row*10
+        tl_col = tl_col * 10
+        br_row = tl_row + template_height
+        br_col = tl_col + template_width
+        #print('this score', score)
+        #print('score cutoff', 1 + normal_std)
+        #print(heatmap[tl_row, tl_col])
+        if True:#score > (np.max(heatmap) + normal_std):
+            output.append([tl_row,tl_col,br_row,br_col, score])
+        
 
     '''
     END YOUR CODE
@@ -86,12 +149,26 @@ def detect_red_light_mf(I):
     '''
     template_height = 8
     template_width = 6
-
+    
+    temp_file = file_names_train[np.random.randint(0,len(file_names_train))]
+    while len(gts_train[temp_file]) < 1:
+        temp_file = file_names_train[np.random.randint(0,len(file_names_train))]
+        print('image has no boxes')
+    tl_row,tl_col,br_row,br_col =gts_train[temp_file][np.random.randint(0,len(gts_train[temp_file]))] 
+    template_height =  br_row - tl_row
+    template_width =   br_col - tl_col                    
     # You may use multiple stages and combine the results
-    T = np.random.random((template_height, template_width))
+    
+    T = Image.open(os.path.join(data_path,temp_file))
+    
 
+    # convert to numpy array:
+    T = np.asarray(T)
+    T = T[int(tl_row):int(br_row),int(tl_col):int(br_col),:]
+
+    trows, tcols, tchannel = np.shape(T)
     heatmap = compute_convolution(I, T)
-    output = predict_boxes(heatmap)
+    output = predict_boxes(heatmap, (template_height, template_width))
 
     '''
     END YOUR CODE
@@ -105,15 +182,16 @@ def detect_red_light_mf(I):
 
 # Note that you are not allowed to use test data for training.
 # set the path to the downloaded data:
-data_path = '../data/RedLights2011_Medium'
+home = 'C:/Users/Jerem/OneDrive/Documents from one drive/GitHub/caltech-ee148-spring2020-hw02'    
+data_path = home+'/data/RedLights2011_Medium'
 
 # load splits: 
-split_path = '../data/hw02_splits'
+split_path = home+'/data/hw02_splits'
 file_names_train = np.load(os.path.join(split_path,'file_names_train.npy'))
-file_names_test = np.load(os.path.join(split_Path,'file_names_test.npy'))
+file_names_test = np.load(os.path.join(split_path,'file_names_test.npy'))
 
 # set a path for saving predictions:
-preds_path = '../data/hw02_preds'
+preds_path = home+'/data/hw02_preds'
 os.makedirs(preds_path, exist_ok=True) # create directory if needed
 
 # Set this parameter to True when you're done with algorithm development:
@@ -123,8 +201,9 @@ done_tweaking = False
 Make predictions on the training set.
 '''
 preds_train = {}
+print(len(file_names_train))
 for i in range(len(file_names_train)):
-
+    print(i/len(file_names_train))
     # read image using PIL:
     I = Image.open(os.path.join(data_path,file_names_train[i]))
 
@@ -132,6 +211,7 @@ for i in range(len(file_names_train)):
     I = np.asarray(I)
 
     preds_train[file_names_train[i]] = detect_red_light_mf(I)
+    break
 
 # save preds (overwrites any previous predictions!)
 with open(os.path.join(preds_path,'preds_train.json'),'w') as f:
